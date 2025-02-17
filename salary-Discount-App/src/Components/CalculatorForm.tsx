@@ -8,6 +8,7 @@ interface FormValues {
   extra_hours:string
   "serviceTime"?: number;
   "workedMonth"?: string;
+  "work_duration"?:string;
 }
 function CalculatorForm() {
 //useState for Switches, Select and Calculation Logic
@@ -15,53 +16,66 @@ function CalculatorForm() {
   const [includeNavidadBonus, setIncludeNavidadBonus] = useState(false);
   const [includePreAviso, setIncludePreAviso] = useState(false);
   //TOTAL OF LIQUIDATION OR LAST PAYCHECK
-  const [totalLiquidation, setTotalLiquidation] = useState("");
+  const [totalLiquidation, setTotalLiquidation] = useState(0);
 
   const [form] = Form.useForm(); // To get form values
-
-
-  const Calculate = (values:FormValues) => { //
-    //Retrieving the salary, workedDays before December, 
-    // Yeard of Serivce, Worked Days of the last from the Form   
-    const salary = Number(values.salary);
-    const worked_Days = Number(values.worked_Days);
-    const serviceTime = Number(values["serviceTime"]) || 0;
-    const workedMonthsBeforeDec = Number(values["workedMonth"]) || 0
-    const bonus = Number(values.bonus)
-    const extra_hours = Number(values.extra_hours)
-    let total:number = 0;
-      //Calculating bonus
-if(bonus!=0){
- total+= salary*bonus/100
-}
-if(extra_hours!=0){
-  total+= salary*bonus/100
- }
-    // Calculating Preaviso if its checked
-    if (!includePreAviso) {
-      let preavisoDays:number = 0;
-      if (worked_Days >= 90 && worked_Days < 180) preavisoDays = 6;
-      else if (worked_Days >= 180 && worked_Days < 365) preavisoDays = 13;
-      else if (worked_Days >= 365) preavisoDays = 28;
-      total += (salary / 30) * preavisoDays;
-    }
-
-    // Calculate Vacations if its checked
-    if (includeVacaciones) {
+  const Calculate = (values: FormValues) => { 
     
-      total += (salary / 30) * serviceTime;
+    const salary = Number(values.salary);
+    const workDuration = values["work_duration"];
+    const LastWorked_Days = Number(values.worked_Days);
+    const workedMonthsBeforeDec = Number(values["workedMonth"]) || 0;
+    const bonus = Number(values.bonus);
+    const extra_hours = Number(values.extra_hours);
+
+    let total: number = 0;
+
+    // Bonus Calculation (Fixed: Bonus is a fixed amount, not a percentage)
+    total += bonus;
+
+    // Extra Hours Calculation (Fixed: Uses hourly rate)
+    if (extra_hours > 0) {
+        const hourlyRate = salary / 160; // Assuming 160 work hours in a month
+        total += extra_hours * hourlyRate;
     }
 
-    // Calculate Christmas Bonus if applicable
-    if (!includeNavidadBonus) {
-   
-      total += (salary / 12) * workedMonthsBeforeDec;
+    // Adding Last Worked Days of the Month
+    if (LastWorked_Days > 0) {
+        total += (salary / 30) * LastWorked_Days;
     }
- 
+
+    // Preaviso Calculation (Only if not included)
+    if (!includePreAviso) {
+        let preavisoDays = 0;
+        switch (workDuration) {
+            case "3_6_months":
+                preavisoDays = 6;
+                break;
+            case "6_12_months":
+                preavisoDays = 13;
+                break;
+            case "1_5_years":
+            case "5_more_years":
+                preavisoDays = 28;
+                break;
+        }
+        total += (salary / 30) * preavisoDays;
+    }
+
+    // Vacation Calculation (Only if unused vacations exist)
+    if (includeVacaciones) {
+        const vacationDays = workDuration === "5_more_years" ? 18 : 14;
+        total += (salary / 30) * vacationDays;
+    }
+
+    // Christmas Bonus Calculation (Only if it wasn’t received)
+    if (!includeNavidadBonus && workedMonthsBeforeDec > 0) {
+        total += (salary / 12) * workedMonthsBeforeDec;
+    }
 
     // Show total liquidation result
-    setTotalLiquidation(total.toFixed(2));
-  };
+    setTotalLiquidation(Number(total.toFixed(2)));
+};
 
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -76,12 +90,26 @@ if(extra_hours!=0){
           <Form.Item label="Monthly Salary (DOP)" name="salary" rules={[{ required: true, message: "Please input your salary!" }]}>
             <Input type="number" />
           </Form.Item>
-         <Form.Item label="Bonus " name="bonus">
+         <Form.Item label="Bonus" name="bonus">
             <Input type="number" />
           </Form.Item>
-          <Form.Item label="Extra Hours" name="extra_hours">
+          <Form.Item label="Extra Hours of Last Month" name="extra_hours">
             <Input type="number" />
           </Form.Item>
+          <Form.Item label="Work Duration"
+          name={"work_duration"}>
+  <Select
+  defaultValue={"Select"}
+  options={[
+    { value: "less_3_months", label: "Less than 3 months" },
+    { value: "3_6_months", label: "3 to 6 months" },
+    { value: "6_12_months", label: "6 to 12 months" },
+    { value: "1_5_years", label: "1 to 5 years" },
+    { value: "5_more_years", label: "More than 5 years" },
+  ]}
+   
+  />
+</Form.Item>
           <Form.Item label="Did you get Preaviso?">
             <Switch  checkedChildren="Yes" unCheckedChildren="No" checked={includePreAviso}  onChange={() => setIncludePreAviso(!includePreAviso)} />
           </Form.Item>
@@ -93,18 +121,6 @@ if(extra_hours!=0){
           <Form.Item label="Unused Vacations?">
             <Switch checkedChildren="Yes" unCheckedChildren="No" checked={includeVacaciones} onChange={() => setIncludeVacaciones(!includeVacaciones)} />
           </Form.Item>
-
-          {includeVacaciones && (
-            <Form.Item label="Years of Service" name="serviceTime">
-              <Select
-                defaultValue="14"
-                options={[
-                  { value: 14, label: "1-5 years of service" },
-                  { value: 18, label: "More than 5 years" },
-                ]}
-              />
-            </Form.Item>
-          )}
 
           <Form.Item label="Received Christmas Bonus?">
             <Switch checkedChildren="Yes" unCheckedChildren="No" checked={includeNavidadBonus} onChange={() => setIncludeNavidadBonus(!includeNavidadBonus)} />

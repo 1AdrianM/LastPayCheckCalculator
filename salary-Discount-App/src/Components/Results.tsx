@@ -1,6 +1,6 @@
 
 interface ResultProp{
-    liquidacion:string
+    liquidacion:number
 
 }
 

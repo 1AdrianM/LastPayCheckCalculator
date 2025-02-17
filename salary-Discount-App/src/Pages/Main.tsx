@@ -6,15 +6,13 @@ import { Content } from "antd/es/layout/layout"
 
 function Main() {
   return (
-    
     <Layout>
     <NavBar/>
     <Content>
     <CalculatorForm/>
     </Content>
     <FooterComponent/>
-    </Layout>
-  )
+    </Layout>)
 }
 
 export default Main
